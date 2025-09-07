@@ -614,9 +614,21 @@ body {
 
 .ltp-cell {
     font-weight: 600;
-    cursor: pointer;
+    cursor: pointer !important;
     transition: all var(--transition-fast);
     position: relative;
+    user-select: none;
+}
+
+.call-ltp, .put-ltp {
+    cursor: pointer !important;
+}
+
+.strike-cell {
+    cursor: pointer !important;
+    font-weight: bold;
+    color: var(--gold);
+    text-align: center;
 }
 
 .ltp-cell:hover {

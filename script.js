@@ -312,6 +312,37 @@ class NSEOptionsChain {
             tbody.appendChild(row);
         });
         
+        // Add click event listeners as fallback
+        setTimeout(() => {
+            document.querySelectorAll('.ltp-cell').forEach(cell => {
+                if (!cell.hasClickListener) {
+                    cell.addEventListener('click', (e) => {
+                        const optionType = cell.getAttribute('data-option-type');
+                        const strike = cell.getAttribute('data-strike');
+                        const price = cell.getAttribute('data-price');
+                        console.log('Cell clicked:', symbol, strike, optionType, price);
+                        if (window.optionsChain) {
+                            window.optionsChain.openTradeModal(symbol, strike, optionType, price);
+                        }
+                    });
+                    cell.hasClickListener = true;
+                }
+            });
+            
+            document.querySelectorAll('.strike-cell').forEach(cell => {
+                if (!cell.hasClickListener) {
+                    cell.addEventListener('click', (e) => {
+                        const strike = cell.getAttribute('data-strike');
+                        console.log('Strike clicked:', strike);
+                        if (window.optionsChain) {
+                            window.optionsChain.openStrikeModal(strike);
+                        }
+                    });
+                    cell.hasClickListener = true;
+                }
+            });
+        }, 100);
+        
         this.marketData[symbol] = { strikes, timeToExpiry, spotPrice: currentSpot };
     }
     
@@ -371,7 +402,8 @@ class NSEOptionsChain {
             <td class="vol-cell call-data">${this.formatNumber(callVol)}</td>
             <td class="ltp-cell call-ltp call-data" 
                 onclick="window.openTradeModal('${symbol}', ${strike}, 'CALL', ${callPrice})"
-                data-option-type="CALL" data-strike="${strike}" data-price="${callPrice}">
+                data-option-type="CALL" data-strike="${strike}" data-price="${callPrice}"
+                style="cursor: pointer; background: rgba(0, 212, 170, 0.1);">
                 ${this.formatPrice(callPrice)}
             </td>
             <td class="change-cell call-data ${callChange >= 0 ? 'positive' : 'negative'}">
@@ -383,7 +415,8 @@ class NSEOptionsChain {
             <!-- Strike Price -->
             <td class="strike-cell ${isATM ? 'atm' : ''}" 
                 onclick="window.openStrikeModal(${strike})"
-                data-strike="${strike}">
+                data-strike="${strike}"
+                style="cursor: pointer; background: rgba(255, 190, 11, 0.1);">
                 ${this.formatPrice(strike)}
             </td>
             
@@ -395,7 +428,8 @@ class NSEOptionsChain {
             </td>
             <td class="ltp-cell put-ltp put-data" 
                 onclick="window.openTradeModal('${symbol}', ${strike}, 'PUT', ${putPrice})"
-                data-option-type="PUT" data-strike="${strike}" data-price="${putPrice}">
+                data-option-type="PUT" data-strike="${strike}" data-price="${putPrice}"
+                style="cursor: pointer; background: rgba(255, 71, 87, 0.1);">
                 ${this.formatPrice(putPrice)}
             </td>
             <td class="vol-cell put-data">${this.formatNumber(putVol)}</td>
@@ -1785,8 +1819,11 @@ ${action} ${quantity} lots @ ₹${this.formatPrice(price)}`);
 
 // Global functions for event handlers
 window.openTradeModal = function(symbol, strike, optionType, price) {
+    console.log('openTradeModal called:', symbol, strike, optionType, price);
     if (window.optionsChain) {
         window.optionsChain.openTradeModal(symbol, strike, optionType, price);
+    } else {
+        console.error('window.optionsChain not found');
     }
 };
 
