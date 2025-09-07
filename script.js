@@ -546,14 +546,22 @@ class NSEOptionsChain {
         const daysToExpiry = Math.ceil((expiryDate - new Date()) / (1000 * 60 * 60 * 24));
         const lotSize = this.symbols[symbol].lotSize;
         
+        const contractExplanation = optionType === 'CALL' ? 
+            `📈 CALL Option gives you the RIGHT to BUY ${symbol} shares at ₹${this.formatPrice(strike)} until expiry` :
+            `📉 PUT Option gives you the RIGHT to SELL ${symbol} shares at ₹${this.formatPrice(strike)} until expiry`;
+            
         optionDetails.innerHTML = `
             <div class="option-summary">
-                <h4>${symbol} ${this.formatPrice(strike)} ${optionType}</h4>
+                <h4>${symbol} ${this.formatPrice(strike)} ${optionType} Options Contract</h4>
+                <div class="contract-explanation" style="background: rgba(255, 190, 11, 0.1); padding: 1rem; border-radius: 8px; margin: 1rem 0; border-left: 4px solid var(--gold);">
+                    <p style="margin: 0; color: var(--gold); font-weight: bold;">${contractExplanation}</p>
+                </div>
                 <div class="option-meta">
-                    <span>Expiry: ${expiryDate.toLocaleDateString()}</span>
-                    <span>Days to Expiry: ${daysToExpiry}</span>
-                    <span>Lot Size: ${lotSize}</span>
-                    <span>LTP: ${this.formatPrice(price)}</span>
+                    <span><strong>Premium per share:</strong> ₹${this.formatPrice(price)}</span>
+                    <span><strong>Expiry:</strong> ${expiryDate.toLocaleDateString()}</span>
+                    <span><strong>Days to Expiry:</strong> ${daysToExpiry} days</span>
+                    <span><strong>Contract Size:</strong> ${lotSize} shares per lot</span>
+                    <span><strong>Current Spot:</strong> ₹${this.formatPrice(this.spotPrice)}</span>
                 </div>
             </div>
         `;
@@ -760,8 +768,13 @@ class NSEOptionsChain {
                     </div>
                     
                     <div style="text-align: center; margin-top: 1rem; padding: 1rem; background: rgba(255, 190, 11, 0.1); border-radius: 8px;">
-                        <p style="color: var(--gold); font-weight: bold; margin: 0;">
-                            💡 Choose "Place Order" for immediate execution or "Add to Basket" to combine multiple options
+                        <p style="color: var(--gold); font-weight: bold; margin: 0 0 0.5rem 0;">
+                            💡 Options Trading Guide
+                        </p>
+                        <p style="color: var(--secondary-text); font-size: 0.9rem; margin: 0;">
+                            <strong>Place Order:</strong> Configure quantity, price, and order type for this contract<br>
+                            <strong>Add to Basket:</strong> Quick add with default settings (BUY 1 lot, MARKET order)<br>
+                            <strong>Premium:</strong> The cost to purchase the options contract (your maximum loss)
                         </p>
                     </div>
                 </div>
@@ -838,10 +851,10 @@ class NSEOptionsChain {
         
         const breakeven = this.calculateBreakeven(this.currentOption, price, action);
         
-        document.getElementById('total-cost').textContent = 
-            action === 'BUY' ? `₹${this.formatNumber(totalCost)}` : `₹${this.formatNumber(-totalCost)} (Credit)`;
-        document.getElementById('margin-required').textContent = `₹${this.formatNumber(marginRequired)}`;
-        document.getElementById('individual-breakeven').textContent = `₹${this.formatPrice(breakeven)}`;
+        const costLabel = action === 'BUY' ? 'Premium to Pay:' : 'Premium Received:';
+        document.getElementById('total-cost').innerHTML = `<strong>${costLabel}</strong><br>₹${this.formatNumber(Math.abs(totalCost))} ${action === 'BUY' ? '(Debit)' : '(Credit)'}`;
+        document.getElementById('margin-required').innerHTML = `<strong>Margin Required:</strong><br>₹${this.formatNumber(marginRequired)}`;
+        document.getElementById('individual-breakeven').innerHTML = `<strong>Breakeven Price:</strong><br>₹${this.formatPrice(breakeven)}`;
     }
     
     calculateMarginRequirement(option, quantity, price) {
@@ -1117,11 +1130,14 @@ Proceed with execution?`;
             this.closeBasket();
             
             if (successCount === orderCount) {
-                this.showToast('success', 'All Orders Executed', 
-                    `🎉 All ${orderCount} orders executed successfully!`);
+                this.showToast('success', '🎉 All Contracts Purchased!', 
+                    `✅ Successfully purchased ${orderCount} options contracts!
+📊 Your options portfolio has been updated
+💼 Check Positions tab to monitor your contracts`);
             } else {
-                this.showToast('warning', 'Partial Execution', 
-                    `⚠️ ${successCount}/${orderCount} orders executed. Check Orders tab for details.`);
+                this.showToast('warning', '⚠️ Partial Execution', 
+                    `${successCount}/${orderCount} contracts purchased successfully.
+📋 Check Orders tab for complete details.`);
             }
         }, 2000);
     }
@@ -1695,13 +1711,26 @@ Proceed with execution?`;
         const action = document.querySelector('input[name="action"]:checked').value;
         const orderType = document.getElementById('order-type').value;
         
-        // Show confirmation dialog
-        const confirmMessage = `Confirm Order:
-${action} ${quantity} lots of ${this.currentOption.symbol} ${this.formatPrice(this.currentOption.strike)} ${this.currentOption.optionType}
-Price: ₹${this.formatPrice(price)}
-Total Cost: ₹${this.formatNumber(quantity * this.currentOption.lotSize * price)}
+        // Show confirmation dialog with clear contract details
+        const totalShares = quantity * this.currentOption.lotSize;
+        const totalPremium = totalShares * price;
+        const contractType = this.currentOption.optionType === 'CALL' ? 'RIGHT TO BUY' : 'RIGHT TO SELL';
+        
+        const confirmMessage = `📋 CONFIRM OPTIONS CONTRACT PURCHASE
 
-Proceed with order?`;
+🎯 Contract Details:
+• ${this.currentOption.symbol} ${this.formatPrice(this.currentOption.strike)} ${this.currentOption.optionType} Option
+• Gives you the ${contractType} ${totalShares} shares at ₹${this.formatPrice(this.currentOption.strike)}
+• Expiry: ${new Date(this.currentExpiry).toLocaleDateString()}
+
+💰 Premium Payment:
+• Premium per share: ₹${this.formatPrice(price)}
+• Quantity: ${quantity} lots (${totalShares} shares)
+• Total Premium to Pay: ₹${this.formatNumber(totalPremium)}
+
+⚠️ Note: Premium is the cost to purchase this options contract.
+
+Proceed with contract purchase?`;
         
         if (!confirm(confirmMessage)) {
             return;
@@ -1736,9 +1765,11 @@ Proceed with order?`;
                 this.createPosition(order);
                 this.addToTradeHistory(order);
                 
-                this.showToast('success', 'Order Executed', 
-                    `✅ Order ${order.orderId} executed successfully!
-${action} ${quantity} lots @ ₹${this.formatPrice(price)}`);
+                const contractType = order.optionType === 'CALL' ? 'RIGHT TO BUY' : 'RIGHT TO SELL';
+                this.showToast('success', '🎉 Options Contract Purchased!', 
+                    `✅ Contract ${order.orderId} executed successfully!
+📋 You now own the ${contractType} ${quantity * this.symbols[order.symbol].lotSize} ${order.symbol} shares
+💰 Premium paid: ₹${this.formatNumber(quantity * this.symbols[order.symbol].lotSize * price)}`);
             } else {
                 order.status = 'REJECTED';
                 this.showToast('danger', 'Order Rejected', 

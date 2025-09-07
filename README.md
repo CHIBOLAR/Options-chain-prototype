@@ -1,10 +1,14 @@
 # 📈 NSE Options Chain Trading Platform
 
-A professional-grade options trading platform prototype built with vanilla HTML, CSS, and JavaScript.
+A comprehensive options trading platform prototype that simulates the complete NSE options trading experience. Built with vanilla HTML, CSS, and JavaScript - no frameworks needed!
 
 ## 🚀 Live Demo
 
 **GitHub Pages**: [https://chibolar.github.io/Options-chain-prototype/](https://chibolar.github.io/Options-chain-prototype/)
+
+## 🎯 Perfect Trading Flow
+
+**Exactly like real options trading:** Select Underlying → Choose Expiry → Pick Strike → Buy Contract → Pay Premium
 
 ## ✨ Features
 
