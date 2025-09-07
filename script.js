@@ -11,10 +11,15 @@ class NSEOptionsChain {
         this.refreshInterval = 5000; // 5 seconds
         this.refreshTimer = null;
         this.basket = [];
+        this.orders = [];
+        this.positions = [];
+        this.tradeHistory = [];
         this.isTradeModalOpen = false;
         this.isStrikeModalOpen = false;
         this.marketData = {};
         this.greeks = {};
+        this.currentTab = 'options';
+        this.orderIdCounter = 1000;
         
         // Indian market parameters
         this.riskFreeRate = 0.065; // 6.5% RBI repo rate
@@ -69,6 +74,9 @@ class NSEOptionsChain {
         this.startAutoRefresh();
         this.updateMarketTime();
         this.showLoadingOverlay();
+        
+        // Initialize portfolio data
+        this.initializePortfolioData();
         
         // Simulate initial data load
         setTimeout(() => {
@@ -183,6 +191,39 @@ class NSEOptionsChain {
                 this.sortTable(e.target.getAttribute('data-sort'));
             });
         });
+
+        // Orders page tab navigation
+        document.querySelectorAll('.tab-btn').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                const tabName = e.target.getAttribute('data-tab');
+                this.switchOrdersTab(tabName);
+            });
+        });
+
+        // Order filters
+        document.querySelectorAll('.order-filters .filter-btn').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                this.filterOrders(e.target.getAttribute('data-filter'));
+            });
+        });
+
+        // Portfolio filters  
+        document.querySelectorAll('.holdings-filters .filter-btn').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                this.filterHoldings(e.target.getAttribute('data-filter'));
+            });
+        });
+
+        // Order validity change
+        const orderValidity = document.getElementById('order-validity');
+        if (orderValidity) {
+            orderValidity.addEventListener('change', (e) => {
+                this.toggleValidityDate(e.target.value);
+            });
+        }
+
+        // Advanced order options
+        this.setupAdvancedOrderListeners();
     }
     
     initializeTradingMode() {
@@ -221,6 +262,10 @@ class NSEOptionsChain {
         
         if (tabName === 'options') {
             this.generateOptionsData();
+        } else if (tabName === 'orders') {
+            this.loadOrdersData();
+        } else if (tabName === 'portfolio') {
+            this.loadHoldingsData();
         }
     }
     
@@ -1180,6 +1225,504 @@ class NSEOptionsChain {
     
     formatNumber(num) {
         return new Intl.NumberFormat('en-IN').format(num);
+    }
+
+    // ============ NEW ENHANCED FUNCTIONALITY ============
+
+    setupAdvancedOrderListeners() {
+        // Target and stop loss price inputs
+        ['target-price', 'stoploss-price', 'trailing-points'].forEach(id => {
+            const element = document.getElementById(id);
+            if (element) {
+                element.addEventListener('input', () => {
+                    this.updateRiskAnalysis();
+                });
+            }
+        });
+    }
+
+    switchOrdersTab(tabName) {
+        // Update tab buttons
+        document.querySelectorAll('.tab-btn').forEach(btn => {
+            btn.classList.remove('active');
+        });
+        document.querySelector(`[data-tab="${tabName}"]`).classList.add('active');
+
+        // Show/hide tab content
+        document.querySelectorAll('.tab-content').forEach(content => {
+            content.classList.remove('active');
+        });
+        document.getElementById(`${tabName}-tab`).classList.add('active');
+
+        // Load appropriate data
+        switch(tabName) {
+            case 'orders':
+                this.loadOrdersData();
+                break;
+            case 'positions':
+                this.loadPositionsData();
+                break;
+            case 'history':
+                this.loadHistoryData();
+                break;
+        }
+    }
+
+    loadOrdersData() {
+        const tbody = document.getElementById('orders-tbody');
+        const emptyState = document.getElementById('orders-empty');
+        
+        if (this.orders.length === 0) {
+            tbody.innerHTML = '';
+            emptyState.style.display = 'block';
+            return;
+        }
+        
+        emptyState.style.display = 'none';
+        tbody.innerHTML = this.orders.map(order => this.createOrderRow(order)).join('');
+    }
+
+    createOrderRow(order) {
+        const statusClass = {
+            'PENDING': 'status-pending',
+            'EXECUTED': 'status-executed',
+            'CANCELLED': 'status-cancelled'
+        }[order.status];
+
+        return `
+            <tr>
+                <td>${order.orderId}</td>
+                <td>${order.time}</td>
+                <td>${order.symbol}</td>
+                <td>${this.formatPrice(order.strike)}</td>
+                <td class="option-type ${order.optionType.toLowerCase()}">${order.optionType}</td>
+                <td class="action-type ${order.action.toLowerCase()}">${order.action}</td>
+                <td>${order.quantity}</td>
+                <td>${this.formatPrice(order.price)}</td>
+                <td>${order.orderType}</td>
+                <td><span class="status-badge ${statusClass}">${order.status}</span></td>
+                <td>
+                    ${order.status === 'PENDING' ? 
+                        `<button class="btn-sm btn-danger" onclick="window.optionsChain.cancelOrder('${order.orderId}')">Cancel</button>
+                         <button class="btn-sm btn-secondary" onclick="window.optionsChain.modifyOrder('${order.orderId}')">Modify</button>` : 
+                        `<button class="btn-sm btn-info" onclick="window.optionsChain.viewOrderDetails('${order.orderId}')">Details</button>`
+                    }
+                </td>
+            </tr>
+        `;
+    }
+
+    loadPositionsData() {
+        const tbody = document.getElementById('positions-tbody');
+        const emptyState = document.getElementById('positions-empty');
+        
+        if (this.positions.length === 0) {
+            tbody.innerHTML = '';
+            emptyState.style.display = 'block';
+            this.updatePositionsSummary();
+            return;
+        }
+        
+        emptyState.style.display = 'none';
+        tbody.innerHTML = this.positions.map(position => this.createPositionRow(position)).join('');
+        this.updatePositionsSummary();
+    }
+
+    createPositionRow(position) {
+        const currentPrice = this.getCurrentOptionPrice(position.symbol, position.strike, position.optionType);
+        const pnl = (currentPrice - position.avgPrice) * position.quantity * this.symbols[position.symbol].lotSize * (position.action === 'BUY' ? 1 : -1);
+        const pnlClass = pnl >= 0 ? 'pnl-positive' : 'pnl-negative';
+
+        return `
+            <tr>
+                <td>${position.symbol}</td>
+                <td>${this.formatPrice(position.strike)}</td>
+                <td class="option-type ${position.optionType.toLowerCase()}">${position.optionType}</td>
+                <td class="action-type ${position.action.toLowerCase()}">${position.action} ${position.quantity}</td>
+                <td>${this.formatPrice(position.avgPrice)}</td>
+                <td>${this.formatPrice(currentPrice)}</td>
+                <td class="${pnlClass}">${pnl >= 0 ? '+' : ''}₹${this.formatNumber(Math.abs(pnl))}</td>
+                <td class="${pnlClass}">₹${this.formatNumber(Math.abs(pnl))}</td>
+                <td>Δ:${position.delta?.toFixed(3) || '0.000'}</td>
+                <td>
+                    <button class="btn-sm btn-primary" onclick="window.optionsChain.squareOffPosition('${position.id}')">Square Off</button>
+                </td>
+            </tr>
+        `;
+    }
+
+    updatePositionsSummary() {
+        let totalPnl = 0;
+        let dayPnl = 0;
+        let marginUsed = 0;
+        
+        this.positions.forEach(position => {
+            const currentPrice = this.getCurrentOptionPrice(position.symbol, position.strike, position.optionType);
+            const pnl = (currentPrice - position.avgPrice) * position.quantity * this.symbols[position.symbol].lotSize * (position.action === 'BUY' ? 1 : -1);
+            totalPnl += pnl;
+            dayPnl += pnl; // Simplified - in real app would track daily changes
+            
+            if (position.action === 'SELL') {
+                marginUsed += this.calculateMarginRequirement(position, position.quantity, position.avgPrice);
+            }
+        });
+
+        document.getElementById('total-pnl').textContent = `${totalPnl >= 0 ? '+' : ''}₹${this.formatNumber(Math.abs(totalPnl))}`;
+        document.getElementById('total-pnl').className = `pnl-amount ${totalPnl >= 0 ? 'pnl-positive' : 'pnl-negative'}`;
+        
+        document.getElementById('day-pnl').textContent = `${dayPnl >= 0 ? '+' : ''}₹${this.formatNumber(Math.abs(dayPnl))}`;
+        document.getElementById('day-pnl').className = `pnl-amount ${dayPnl >= 0 ? 'pnl-positive' : 'pnl-negative'}`;
+        
+        document.getElementById('position-count').textContent = this.positions.length;
+        document.getElementById('margin-used').textContent = `₹${this.formatNumber(marginUsed)}`;
+    }
+
+    loadHistoryData() {
+        const tbody = document.getElementById('history-tbody');
+        const emptyState = document.getElementById('history-empty');
+        
+        if (this.tradeHistory.length === 0) {
+            tbody.innerHTML = '';
+            emptyState.style.display = 'block';
+            return;
+        }
+        
+        emptyState.style.display = 'none';
+        tbody.innerHTML = this.tradeHistory.map(trade => this.createHistoryRow(trade)).join('');
+    }
+
+    createHistoryRow(trade) {
+        const pnlClass = trade.pnl >= 0 ? 'pnl-positive' : 'pnl-negative';
+        
+        return `
+            <tr>
+                <td>${trade.date}</td>
+                <td>${trade.orderId}</td>
+                <td>${trade.symbol}</td>
+                <td>${this.formatPrice(trade.strike)}</td>
+                <td class="option-type ${trade.optionType.toLowerCase()}">${trade.optionType}</td>
+                <td class="action-type ${trade.action.toLowerCase()}">${trade.action}</td>
+                <td>${trade.quantity}</td>
+                <td>${this.formatPrice(trade.price)}</td>
+                <td class="${pnlClass}">${trade.pnl >= 0 ? '+' : ''}₹${this.formatNumber(Math.abs(trade.pnl))}</td>
+            </tr>
+        `;
+    }
+
+    getCurrentOptionPrice(symbol, strike, optionType) {
+        // Simulate getting current price - in real app would fetch from market data
+        const spot = this.symbols[symbol].underlyingPrice;
+        const timeToExpiry = (new Date(this.currentExpiry) - new Date()) / (1000 * 60 * 60 * 24 * 365);
+        
+        if (optionType === 'CALL') {
+            return this.blackScholesCall(spot, strike, timeToExpiry, this.riskFreeRate, 0.25);
+        } else {
+            return this.blackScholesPut(spot, strike, timeToExpiry, this.riskFreeRate, 0.25);
+        }
+    }
+
+    filterOrders(filterType) {
+        // Update active filter button
+        document.querySelectorAll('.order-filters .filter-btn').forEach(btn => {
+            btn.classList.remove('active');
+        });
+        document.querySelector(`.order-filters [data-filter="${filterType}"]`).classList.add('active');
+        
+        const rows = document.querySelectorAll('#orders-tbody tr');
+        rows.forEach(row => {
+            const status = row.querySelector('.status-badge').textContent;
+            let shouldShow = true;
+            
+            switch(filterType) {
+                case 'pending':
+                    shouldShow = status === 'PENDING';
+                    break;
+                case 'executed':
+                    shouldShow = status === 'EXECUTED';
+                    break;
+                case 'cancelled':
+                    shouldShow = status === 'CANCELLED';
+                    break;
+                case 'all':
+                default:
+                    shouldShow = true;
+                    break;
+            }
+            
+            row.style.display = shouldShow ? '' : 'none';
+        });
+    }
+
+    filterHoldings(filterType) {
+        // Update active filter button
+        document.querySelectorAll('.holdings-filters .filter-btn').forEach(btn => {
+            btn.classList.remove('active');
+        });
+        document.querySelector(`.holdings-filters [data-filter="${filterType}"]`).classList.add('active');
+        
+        // Apply filter logic here
+        this.loadHoldingsData();
+    }
+
+    togglePriceInput(orderType) {
+        const priceGroup = document.getElementById('price-group');
+        const priceInput = document.getElementById('price');
+        const advancedOptions = document.getElementById('advanced-order-options');
+        
+        // Hide all advanced options first
+        advancedOptions.style.display = 'none';
+        document.querySelectorAll('.advanced-order-options .form-group').forEach(group => {
+            group.style.display = 'none';
+        });
+        
+        if (orderType === 'MARKET') {
+            priceGroup.style.display = 'none';
+        } else {
+            priceGroup.style.display = 'block';
+            if (orderType === 'LIMIT') {
+                priceInput.placeholder = 'Enter limit price';
+            } else if (orderType.startsWith('SL')) {
+                priceInput.placeholder = 'Enter trigger price';
+            }
+        }
+        
+        // Show advanced options for specific order types
+        if (['BRACKET', 'COVER', 'GTT', 'OCO'].includes(orderType)) {
+            advancedOptions.style.display = 'block';
+            
+            if (orderType === 'BRACKET') {
+                document.getElementById('target-group').style.display = 'block';
+                document.getElementById('stoploss-group').style.display = 'block';
+                document.getElementById('trailing-group').style.display = 'block';
+            } else if (orderType === 'COVER') {
+                document.getElementById('stoploss-group').style.display = 'block';
+            } else if (orderType === 'GTT') {
+                document.getElementById('validity-group').style.display = 'block';
+            }
+        }
+        
+        this.updateRiskAnalysis();
+    }
+
+    toggleValidityDate(validityType) {
+        const validityDate = document.getElementById('validity-date');
+        validityDate.style.display = validityType === 'GTD' ? 'block' : 'none';
+    }
+
+    placeOrder() {
+        if (!this.currentOption) return;
+        
+        const quantity = parseInt(document.getElementById('quantity').value) || 1;
+        const price = parseFloat(document.getElementById('price').value) || this.currentOption.price;
+        const action = document.querySelector('input[name="action"]:checked').value;
+        const orderType = document.getElementById('order-type').value;
+        
+        // Create order object
+        const order = {
+            orderId: `ORD${++this.orderIdCounter}`,
+            symbol: this.currentOption.symbol,
+            strike: this.currentOption.strike,
+            optionType: this.currentOption.optionType,
+            action: action,
+            quantity: quantity,
+            price: price,
+            orderType: orderType,
+            status: 'PENDING',
+            time: new Date().toLocaleTimeString(),
+            timestamp: new Date()
+        };
+        
+        // Add advanced order properties
+        if (['BRACKET', 'COVER'].includes(orderType)) {
+            const targetPrice = parseFloat(document.getElementById('target-price').value);
+            const stoplossPrice = parseFloat(document.getElementById('stoploss-price').value);
+            
+            if (targetPrice) order.targetPrice = targetPrice;
+            if (stoplossPrice) order.stoplossPrice = stoplossPrice;
+        }
+        
+        this.orders.push(order);
+        
+        // Simulate order execution
+        this.showLoadingOverlay('Placing order...');
+        
+        setTimeout(() => {
+            this.hideLoadingOverlay();
+            
+            // Simulate execution (90% chance)
+            if (Math.random() > 0.1) {
+                order.status = 'EXECUTED';
+                this.createPosition(order);
+                this.addToTradeHistory(order);
+            }
+            
+            this.showToast('success', 'Order Placed', 
+                `Order ${order.orderId} placed successfully`);
+            
+            this.closeModals();
+        }, 2000);
+    }
+
+    createPosition(order) {
+        const existingPosition = this.positions.find(p => 
+            p.symbol === order.symbol && 
+            p.strike === order.strike && 
+            p.optionType === order.optionType &&
+            p.action === order.action
+        );
+        
+        if (existingPosition) {
+            // Average the positions
+            const totalQty = existingPosition.quantity + order.quantity;
+            const totalValue = (existingPosition.avgPrice * existingPosition.quantity) + (order.price * order.quantity);
+            existingPosition.avgPrice = totalValue / totalQty;
+            existingPosition.quantity = totalQty;
+        } else {
+            // Create new position
+            this.positions.push({
+                id: Date.now(),
+                symbol: order.symbol,
+                strike: order.strike,
+                optionType: order.optionType,
+                action: order.action,
+                quantity: order.quantity,
+                avgPrice: order.price,
+                delta: this.calculateDelta(this.spotPrice, order.strike, 
+                    (new Date(this.currentExpiry) - new Date()) / (1000 * 60 * 60 * 24 * 365),
+                    this.riskFreeRate, 0.25, order.optionType === 'CALL')
+            });
+        }
+    }
+
+    addToTradeHistory(order) {
+        this.tradeHistory.push({
+            date: new Date().toLocaleDateString(),
+            orderId: order.orderId,
+            symbol: order.symbol,
+            strike: order.strike,
+            optionType: order.optionType,
+            action: order.action,
+            quantity: order.quantity,
+            price: order.price,
+            pnl: 0 // Will be calculated when position is closed
+        });
+    }
+
+    cancelOrder(orderId) {
+        const order = this.orders.find(o => o.orderId === orderId);
+        if (order && order.status === 'PENDING') {
+            order.status = 'CANCELLED';
+            this.loadOrdersData();
+            this.showToast('info', 'Order Cancelled', `Order ${orderId} cancelled successfully`);
+        }
+    }
+
+    squareOffPosition(positionId) {
+        const position = this.positions.find(p => p.id == positionId);
+        if (!position) return;
+        
+        // Create opposite order to square off
+        const oppositeAction = position.action === 'BUY' ? 'SELL' : 'BUY';
+        const currentPrice = this.getCurrentOptionPrice(position.symbol, position.strike, position.optionType);
+        
+        const squareOffOrder = {
+            orderId: `ORD${++this.orderIdCounter}`,
+            symbol: position.symbol,
+            strike: position.strike,
+            optionType: position.optionType,
+            action: oppositeAction,
+            quantity: position.quantity,
+            price: currentPrice,
+            orderType: 'MARKET',
+            status: 'EXECUTED',
+            time: new Date().toLocaleTimeString(),
+            timestamp: new Date()
+        };
+        
+        // Calculate P&L
+        const pnl = (currentPrice - position.avgPrice) * position.quantity * 
+                   this.symbols[position.symbol].lotSize * (position.action === 'BUY' ? 1 : -1);
+        
+        // Add to trade history
+        this.tradeHistory.push({
+            date: new Date().toLocaleDateString(),
+            orderId: squareOffOrder.orderId,
+            symbol: position.symbol,
+            strike: position.strike,
+            optionType: position.optionType,
+            action: oppositeAction,
+            quantity: position.quantity,
+            price: currentPrice,
+            pnl: pnl
+        });
+        
+        // Remove position
+        this.positions = this.positions.filter(p => p.id != positionId);
+        
+        this.orders.push(squareOffOrder);
+        this.loadPositionsData();
+        
+        this.showToast('success', 'Position Squared Off', 
+            `Position closed with P&L: ${pnl >= 0 ? '+' : ''}₹${this.formatNumber(Math.abs(pnl))}`);
+    }
+
+    loadHoldingsData() {
+        // Simulate portfolio holdings data
+        const tbody = document.getElementById('holdings-tbody');
+        if (!tbody) return;
+        
+        const holdings = [
+            {
+                symbol: 'NIFTY',
+                strike: '21400',
+                type: 'CALL',
+                quantity: 100,
+                avgCost: 125.50,
+                ltp: 145.25,
+                pnl: 1975,
+                change: 15.74
+            },
+            {
+                symbol: 'BANKNIFTY',
+                strike: '46300',
+                type: 'PUT',
+                quantity: -75,
+                avgCost: 98.75,
+                ltp: 87.50,
+                pnl: 843.75,
+                change: -11.39
+            }
+        ];
+        
+        tbody.innerHTML = holdings.map(holding => {
+            const pnlClass = holding.pnl >= 0 ? 'pnl-positive' : 'pnl-negative';
+            const changeClass = holding.change >= 0 ? 'pnl-positive' : 'pnl-negative';
+            
+            return `
+                <tr>
+                    <td>${holding.symbol}</td>
+                    <td>${holding.strike}</td>
+                    <td class="option-type ${holding.type.toLowerCase()}">${holding.type}</td>
+                    <td>${Math.abs(holding.quantity)} ${holding.quantity >= 0 ? 'LONG' : 'SHORT'}</td>
+                    <td>₹${this.formatPrice(holding.avgCost)}</td>
+                    <td>₹${this.formatPrice(holding.ltp)}</td>
+                    <td>₹${this.formatNumber(Math.abs(holding.quantity * holding.ltp))}</td>
+                    <td class="${pnlClass}">${holding.pnl >= 0 ? '+' : ''}₹${this.formatNumber(Math.abs(holding.pnl))}</td>
+                    <td class="${changeClass}">${holding.change >= 0 ? '+' : ''}${holding.change.toFixed(2)}%</td>
+                    <td>Δ:0.65 Γ:0.08</td>
+                    <td>
+                        <button class="btn-sm btn-danger" onclick="window.optionsChain.sellHolding('${holding.symbol}_${holding.strike}_${holding.type}')">Sell</button>
+                    </td>
+                </tr>
+            `;
+        }).join('');
+    }
+
+    initializePortfolioData() {
+        // Initialize with some sample data
+        setTimeout(() => {
+            this.loadHoldingsData();
+        }, 1000);
     }
 }
 

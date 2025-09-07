@@ -167,8 +167,155 @@
         </div>
 
         <div class="page" id="orders-page">
-            <h2>Orders & Positions</h2>
-            <p>Orders management will be implemented here</p>
+            <div class="orders-container">
+                <div class="page-header">
+                    <h2><i class="fas fa-list-alt"></i> Orders & Positions</h2>
+                    <div class="header-actions">
+                        <div class="order-filters">
+                            <button class="filter-btn active" data-filter="all">All</button>
+                            <button class="filter-btn" data-filter="pending">Pending</button>
+                            <button class="filter-btn" data-filter="executed">Executed</button>
+                            <button class="filter-btn" data-filter="cancelled">Cancelled</button>
+                        </div>
+                        <button class="btn-primary" id="cancel-all-orders">
+                            <i class="fas fa-times-circle"></i> Cancel All Pending
+                        </button>
+                    </div>
+                </div>
+                
+                <div class="orders-tabs">
+                    <button class="tab-btn active" data-tab="orders">Orders</button>
+                    <button class="tab-btn" data-tab="positions">Positions</button>
+                    <button class="tab-btn" data-tab="history">Trade History</button>
+                </div>
+                
+                <!-- Orders Tab -->
+                <div class="tab-content active" id="orders-tab">
+                    <div class="orders-table-wrapper">
+                        <table class="orders-table">
+                            <thead>
+                                <tr>
+                                    <th>Order ID</th>
+                                    <th>Time</th>
+                                    <th>Symbol</th>
+                                    <th>Strike</th>
+                                    <th>Type</th>
+                                    <th>Action</th>
+                                    <th>Qty</th>
+                                    <th>Price</th>
+                                    <th>Order Type</th>
+                                    <th>Status</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="orders-tbody">
+                                <!-- Orders will be populated by JavaScript -->
+                            </tbody>
+                        </table>
+                        <div class="empty-state" id="orders-empty" style="display: none;">
+                            <i class="fas fa-clipboard-list"></i>
+                            <h3>No Orders Found</h3>
+                            <p>Your orders will appear here once you start trading</p>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Positions Tab -->
+                <div class="tab-content" id="positions-tab">
+                    <div class="positions-summary">
+                        <div class="summary-card">
+                            <h4>Total P&L</h4>
+                            <span class="pnl-amount" id="total-pnl">₹0.00</span>
+                        </div>
+                        <div class="summary-card">
+                            <h4>Day P&L</h4>
+                            <span class="pnl-amount" id="day-pnl">₹0.00</span>
+                        </div>
+                        <div class="summary-card">
+                            <h4>Active Positions</h4>
+                            <span class="position-count" id="position-count">0</span>
+                        </div>
+                        <div class="summary-card">
+                            <h4>Margin Used</h4>
+                            <span class="margin-used" id="margin-used">₹0</span>
+                        </div>
+                    </div>
+                    
+                    <div class="positions-table-wrapper">
+                        <table class="positions-table">
+                            <thead>
+                                <tr>
+                                    <th>Symbol</th>
+                                    <th>Strike</th>
+                                    <th>Type</th>
+                                    <th>Qty</th>
+                                    <th>Avg Price</th>
+                                    <th>LTP</th>
+                                    <th>P&L</th>
+                                    <th>Day P&L</th>
+                                    <th>Greeks</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="positions-tbody">
+                                <!-- Positions will be populated by JavaScript -->
+                            </tbody>
+                        </table>
+                        <div class="empty-state" id="positions-empty" style="display: none;">
+                            <i class="fas fa-briefcase"></i>
+                            <h3>No Active Positions</h3>
+                            <p>Your positions will appear here after executing trades</p>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- History Tab -->
+                <div class="tab-content" id="history-tab">
+                    <div class="history-filters">
+                        <div class="filter-group">
+                            <label>Date Range:</label>
+                            <input type="date" id="from-date">
+                            <input type="date" id="to-date">
+                            <button class="btn-secondary apply-filter">Apply</button>
+                        </div>
+                        <div class="filter-group">
+                            <label>Symbol:</label>
+                            <select id="history-symbol-filter">
+                                <option value="all">All Symbols</option>
+                                <option value="NIFTY">NIFTY</option>
+                                <option value="BANKNIFTY">BANKNIFTY</option>
+                                <option value="FINNIFTY">FINNIFTY</option>
+                            </select>
+                        </div>
+                    </div>
+                    
+                    <div class="history-table-wrapper">
+                        <table class="history-table">
+                            <thead>
+                                <tr>
+                                    <th>Date</th>
+                                    <th>Order ID</th>
+                                    <th>Symbol</th>
+                                    <th>Strike</th>
+                                    <th>Type</th>
+                                    <th>Action</th>
+                                    <th>Qty</th>
+                                    <th>Price</th>
+                                    <th>P&L</th>
+                                </tr>
+                            </thead>
+                            <tbody id="history-tbody">
+                                <!-- History will be populated by JavaScript -->
+                            </tbody>
+                        </table>
+                        <div class="empty-state" id="history-empty" style="display: none;">
+                            <i class="fas fa-history"></i>
+                            <h3>No Trading History</h3>
+                            <p>Your trading history will appear here</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
         </div>
 
         <div class="page" id="market-page">
@@ -177,8 +324,175 @@
         </div>
 
         <div class="page" id="portfolio-page">
-            <h2>Portfolio</h2>
-            <p>Portfolio overview and P&L will be displayed here</p>
+            <div class="portfolio-container">
+                <div class="page-header">
+                    <h2><i class="fas fa-briefcase"></i> Portfolio Overview</h2>
+                    <div class="header-actions">
+                        <button class="btn-secondary" id="export-portfolio">
+                            <i class="fas fa-download"></i> Export
+                        </button>
+                        <button class="btn-primary" id="close-all-positions">
+                            <i class="fas fa-times-circle"></i> Close All Positions
+                        </button>
+                    </div>
+                </div>
+                
+                <!-- Portfolio Summary Cards -->
+                <div class="portfolio-summary">
+                    <div class="summary-grid">
+                        <div class="summary-card large">
+                            <div class="card-header">
+                                <h3>Portfolio Value</h3>
+                                <i class="fas fa-wallet"></i>
+                            </div>
+                            <div class="card-value">
+                                <span class="amount" id="portfolio-value">₹2,45,680</span>
+                                <span class="change-indicator" id="portfolio-change">+₹3,240 (+1.34%)</span>
+                            </div>
+                        </div>
+                        
+                        <div class="summary-card">
+                            <div class="card-header">
+                                <h4>Available Balance</h4>
+                            </div>
+                            <div class="card-value">
+                                <span class="amount" id="available-balance">₹1,85,420</span>
+                            </div>
+                        </div>
+                        
+                        <div class="summary-card">
+                            <div class="card-header">
+                                <h4>Used Margin</h4>
+                            </div>
+                            <div class="card-value">
+                                <span class="amount" id="used-margin">₹60,260</span>
+                            </div>
+                        </div>
+                        
+                        <div class="summary-card">
+                            <div class="card-header">
+                                <h4>Unrealized P&L</h4>
+                            </div>
+                            <div class="card-value">
+                                <span class="amount pnl-positive" id="unrealized-pnl">+₹8,540</span>
+                            </div>
+                        </div>
+                        
+                        <div class="summary-card">
+                            <div class="card-header">
+                                <h4>Realized P&L</h4>
+                            </div>
+                            <div class="card-value">
+                                <span class="amount pnl-negative" id="realized-pnl">-₹2,100</span>
+                            </div>
+                        </div>
+                        
+                        <div class="summary-card">
+                            <div class="card-header">
+                                <h4>Total Positions</h4>
+                            </div>
+                            <div class="card-value">
+                                <span class="amount" id="total-positions">12</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Portfolio Analytics -->
+                <div class="portfolio-analytics">
+                    <div class="analytics-row">
+                        <div class="analytics-card">
+                            <h4>Risk Metrics</h4>
+                            <div class="metrics-grid">
+                                <div class="metric">
+                                    <span class="metric-label">Portfolio Delta</span>
+                                    <span class="metric-value" id="portfolio-delta">+0.24</span>
+                                </div>
+                                <div class="metric">
+                                    <span class="metric-label">Portfolio Gamma</span>
+                                    <span class="metric-value" id="portfolio-gamma">+0.08</span>
+                                </div>
+                                <div class="metric">
+                                    <span class="metric-label">Portfolio Theta</span>
+                                    <span class="metric-value" id="portfolio-theta">-₹120/day</span>
+                                </div>
+                                <div class="metric">
+                                    <span class="metric-label">Portfolio Vega</span>
+                                    <span class="metric-value" id="portfolio-vega">+₹450</span>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="analytics-card">
+                            <h4>Exposure Distribution</h4>
+                            <div class="exposure-chart" id="exposure-chart">
+                                <div class="exposure-item">
+                                    <span class="exposure-label">NIFTY</span>
+                                    <div class="exposure-bar">
+                                        <div class="exposure-fill" style="width: 65%"></div>
+                                    </div>
+                                    <span class="exposure-value">65%</span>
+                                </div>
+                                <div class="exposure-item">
+                                    <span class="exposure-label">BANKNIFTY</span>
+                                    <div class="exposure-bar">
+                                        <div class="exposure-fill" style="width: 25%"></div>
+                                    </div>
+                                    <span class="exposure-value">25%</span>
+                                </div>
+                                <div class="exposure-item">
+                                    <span class="exposure-label">OTHERS</span>
+                                    <div class="exposure-bar">
+                                        <div class="exposure-fill" style="width: 10%"></div>
+                                    </div>
+                                    <span class="exposure-value">10%</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Holdings Table -->
+                <div class="holdings-section">
+                    <div class="section-header">
+                        <h3>Holdings</h3>
+                        <div class="holdings-filters">
+                            <button class="filter-btn active" data-filter="all">All</button>
+                            <button class="filter-btn" data-filter="profitable">Profitable</button>
+                            <button class="filter-btn" data-filter="losing">Losing</button>
+                            <button class="filter-btn" data-filter="options">Options Only</button>
+                        </div>
+                    </div>
+                    
+                    <div class="holdings-table-wrapper">
+                        <table class="holdings-table">
+                            <thead>
+                                <tr>
+                                    <th>Symbol</th>
+                                    <th>Strike/Price</th>
+                                    <th>Type</th>
+                                    <th>Quantity</th>
+                                    <th>Avg Cost</th>
+                                    <th>LTP</th>
+                                    <th>Market Value</th>
+                                    <th>P&L</th>
+                                    <th>% Change</th>
+                                    <th>Greeks</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="holdings-tbody">
+                                <!-- Holdings will be populated by JavaScript -->
+                            </tbody>
+                        </table>
+                        <div class="empty-state" id="holdings-empty" style="display: none;">
+                            <i class="fas fa-chart-pie"></i>
+                            <h3>No Holdings</h3>
+                            <p>Your portfolio holdings will appear here</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
         </div>
     </main>
 
@@ -268,7 +582,42 @@
                             <option value="LIMIT">Limit</option>
                             <option value="SL">Stop Loss</option>
                             <option value="SL-M">Stop Loss Market</option>
+                            <option value="BRACKET">Bracket Order</option>
+                            <option value="COVER">Cover Order</option>
+                            <option value="GTT">GTT (Good Till Triggered)</option>
+                            <option value="OCO">OCO (One-Cancels-Other)</option>
                         </select>
+                    </div>
+                    
+                    <!-- Advanced Order Options -->
+                    <div class="advanced-order-options" id="advanced-order-options" style="display: none;">
+                        <div class="form-group" id="target-group" style="display: none;">
+                            <label>Target Price:</label>
+                            <input type="number" id="target-price" step="0.05" placeholder="Profit booking price">
+                        </div>
+                        
+                        <div class="form-group" id="stoploss-group" style="display: none;">
+                            <label>Stop Loss Price:</label>
+                            <input type="number" id="stoploss-price" step="0.05" placeholder="Stop loss trigger price">
+                        </div>
+                        
+                        <div class="form-group" id="trailing-group" style="display: none;">
+                            <label>
+                                <input type="checkbox" id="trailing-sl"> 
+                                Trailing Stop Loss
+                            </label>
+                            <input type="number" id="trailing-points" step="0.05" placeholder="Trailing points" style="margin-left: 10px;">
+                        </div>
+                        
+                        <div class="form-group" id="validity-group" style="display: none;">
+                            <label>Validity:</label>
+                            <select id="order-validity">
+                                <option value="DAY">Day</option>
+                                <option value="GTD">Good Till Date</option>
+                                <option value="GTC">Good Till Cancelled</option>
+                            </select>
+                            <input type="date" id="validity-date" style="margin-left: 10px; display: none;">
+                        </div>
                     </div>
                     
                     <div class="form-group" id="price-group">
