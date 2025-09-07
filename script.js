@@ -370,7 +370,7 @@ class NSEOptionsChain {
             <td class="oi-cell call-data">${this.formatNumber(callOI)}</td>
             <td class="vol-cell call-data">${this.formatNumber(callVol)}</td>
             <td class="ltp-cell call-ltp call-data" 
-                onclick="this.openTradeModal('${symbol}', ${strike}, 'CALL', ${callPrice})"
+                onclick="window.openTradeModal('${symbol}', ${strike}, 'CALL', ${callPrice})"
                 data-option-type="CALL" data-strike="${strike}" data-price="${callPrice}">
                 ${this.formatPrice(callPrice)}
             </td>
@@ -382,7 +382,7 @@ class NSEOptionsChain {
             
             <!-- Strike Price -->
             <td class="strike-cell ${isATM ? 'atm' : ''}" 
-                onclick="this.openStrikeModal(${strike})"
+                onclick="window.openStrikeModal(${strike})"
                 data-strike="${strike}">
                 ${this.formatPrice(strike)}
             </td>
@@ -394,7 +394,7 @@ class NSEOptionsChain {
                 ${putChange >= 0 ? '+' : ''}${putChange.toFixed(2)}%
             </td>
             <td class="ltp-cell put-ltp put-data" 
-                onclick="this.openTradeModal('${symbol}', ${strike}, 'PUT', ${putPrice})"
+                onclick="window.openTradeModal('${symbol}', ${strike}, 'PUT', ${putPrice})"
                 data-option-type="PUT" data-strike="${strike}" data-price="${putPrice}">
                 ${this.formatPrice(putPrice)}
             </td>
@@ -784,7 +784,7 @@ class NSEOptionsChain {
         this.showBasket();
         
         this.showToast('success', 'Added to Basket', 
-            `${action} ${quantity}x ${this.currentOption.symbol} ${this.currentOption.strike} ${this.currentOption.optionType}`);
+            `✅ ${action} ${quantity} lots of ${this.currentOption.symbol} ${this.formatPrice(this.currentOption.strike)} ${this.currentOption.optionType} added to basket`);
         
         this.closeModals();
     }
@@ -932,20 +932,69 @@ class NSEOptionsChain {
             return;
         }
         
-        this.showLoadingOverlay('Executing orders...');
+        // Calculate total cost
+        let totalCost = 0;
+        this.basket.forEach(item => {
+            const cost = item.quantity * item.lotSize * item.price;
+            totalCost += item.action === 'BUY' ? cost : -cost;
+        });
+        
+        // Show confirmation
+        const confirmMessage = `Execute All Orders in Basket?
+        
+${this.basket.length} orders
+Net Cost: ${totalCost >= 0 ? '+' : ''}₹${this.formatNumber(Math.abs(totalCost))}${totalCost >= 0 ? '' : ' (Credit)'}
+
+Proceed with execution?`;
+        
+        if (!confirm(confirmMessage)) {
+            return;
+        }
+        
+        this.showLoadingOverlay('Executing basket orders...');
         
         setTimeout(() => {
             this.hideLoadingOverlay();
             
             const orderCount = this.basket.length;
-            const orderIds = this.basket.map(() => 'ORD' + Date.now().toString().slice(-6));
+            let successCount = 0;
+            
+            // Convert basket items to orders and execute them
+            this.basket.forEach(basketItem => {
+                const order = {
+                    orderId: `ORD${++this.orderIdCounter}`,
+                    symbol: basketItem.symbol,
+                    strike: basketItem.strike,
+                    optionType: basketItem.optionType,
+                    action: basketItem.action,
+                    quantity: basketItem.quantity,
+                    price: basketItem.price,
+                    orderType: basketItem.orderType,
+                    status: Math.random() > 0.05 ? 'EXECUTED' : 'REJECTED',
+                    time: new Date().toLocaleTimeString(),
+                    timestamp: new Date()
+                };
+                
+                this.orders.push(order);
+                
+                if (order.status === 'EXECUTED') {
+                    successCount++;
+                    this.createPosition(order);
+                    this.addToTradeHistory(order);
+                }
+            });
             
             this.clearBasket();
             this.closeBasket();
             
-            this.showToast('success', 'Orders Executed', 
-                `${orderCount} orders executed successfully. Order IDs: ${orderIds.slice(0, 3).join(', ')}${orderCount > 3 ? '...' : ''}`);
-        }, 3000);
+            if (successCount === orderCount) {
+                this.showToast('success', 'All Orders Executed', 
+                    `🎉 All ${orderCount} orders executed successfully!`);
+            } else {
+                this.showToast('warning', 'Partial Execution', 
+                    `⚠️ ${successCount}/${orderCount} orders executed. Check Orders tab for details.`);
+            }
+        }, 2000);
     }
     
     closeModals() {
@@ -1517,6 +1566,18 @@ class NSEOptionsChain {
         const action = document.querySelector('input[name="action"]:checked').value;
         const orderType = document.getElementById('order-type').value;
         
+        // Show confirmation dialog
+        const confirmMessage = `Confirm Order:
+${action} ${quantity} lots of ${this.currentOption.symbol} ${this.formatPrice(this.currentOption.strike)} ${this.currentOption.optionType}
+Price: ₹${this.formatPrice(price)}
+Total Cost: ₹${this.formatNumber(quantity * this.currentOption.lotSize * price)}
+
+Proceed with order?`;
+        
+        if (!confirm(confirmMessage)) {
+            return;
+        }
+        
         // Create order object
         const order = {
             orderId: `ORD${++this.orderIdCounter}`,
@@ -1532,15 +1593,6 @@ class NSEOptionsChain {
             timestamp: new Date()
         };
         
-        // Add advanced order properties
-        if (['BRACKET', 'COVER'].includes(orderType)) {
-            const targetPrice = parseFloat(document.getElementById('target-price').value);
-            const stoplossPrice = parseFloat(document.getElementById('stoploss-price').value);
-            
-            if (targetPrice) order.targetPrice = targetPrice;
-            if (stoplossPrice) order.stoplossPrice = stoplossPrice;
-        }
-        
         this.orders.push(order);
         
         // Simulate order execution
@@ -1549,18 +1601,23 @@ class NSEOptionsChain {
         setTimeout(() => {
             this.hideLoadingOverlay();
             
-            // Simulate execution (90% chance)
-            if (Math.random() > 0.1) {
+            // Simulate execution (95% success rate)
+            if (Math.random() > 0.05) {
                 order.status = 'EXECUTED';
                 this.createPosition(order);
                 this.addToTradeHistory(order);
+                
+                this.showToast('success', 'Order Executed', 
+                    `✅ Order ${order.orderId} executed successfully!
+${action} ${quantity} lots @ ₹${this.formatPrice(price)}`);
+            } else {
+                order.status = 'REJECTED';
+                this.showToast('danger', 'Order Rejected', 
+                    `❌ Order ${order.orderId} rejected - Market conditions`);
             }
             
-            this.showToast('success', 'Order Placed', 
-                `Order ${order.orderId} placed successfully`);
-            
             this.closeModals();
-        }, 2000);
+        }, 1500);
     }
 
     createPosition(order) {
