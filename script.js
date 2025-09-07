@@ -403,8 +403,10 @@ class NSEOptionsChain {
             <td class="ltp-cell call-ltp call-data" 
                 onclick="window.openTradeModal('${symbol}', ${strike}, 'CALL', ${callPrice})"
                 data-option-type="CALL" data-strike="${strike}" data-price="${callPrice}"
-                style="cursor: pointer; background: rgba(0, 212, 170, 0.1);">
-                ${this.formatPrice(callPrice)}
+                style="cursor: pointer; background: rgba(0, 212, 170, 0.2); border: 2px solid #00d4aa; position: relative;"
+                title="Click to BUY/SELL this CALL option">
+                <div style="font-weight: bold; color: #00d4aa;">₹${this.formatPrice(callPrice)}</div>
+                <div style="font-size: 10px; color: #00d4aa; font-weight: bold;">📈 TRADE</div>
             </td>
             <td class="change-cell call-data ${callChange >= 0 ? 'positive' : 'negative'}">
                 ${callChange >= 0 ? '+' : ''}${callChange.toFixed(2)}%
@@ -429,8 +431,10 @@ class NSEOptionsChain {
             <td class="ltp-cell put-ltp put-data" 
                 onclick="window.openTradeModal('${symbol}', ${strike}, 'PUT', ${putPrice})"
                 data-option-type="PUT" data-strike="${strike}" data-price="${putPrice}"
-                style="cursor: pointer; background: rgba(255, 71, 87, 0.1);">
-                ${this.formatPrice(putPrice)}
+                style="cursor: pointer; background: rgba(255, 71, 87, 0.2); border: 2px solid #ff4757; position: relative;"
+                title="Click to BUY/SELL this PUT option">
+                <div style="font-weight: bold; color: #ff4757;">₹${this.formatPrice(putPrice)}</div>
+                <div style="font-size: 10px; color: #ff4757; font-weight: bold;">📉 TRADE</div>
             </td>
             <td class="vol-cell put-data">${this.formatNumber(putVol)}</td>
             <td class="oi-cell put-data">${this.formatNumber(putOI)}</td>
@@ -708,11 +712,102 @@ class NSEOptionsChain {
                         </div>
                     </div>
                 </div>
+                
+                <!-- Trading Action Buttons -->
+                <div class="analysis-section full-width" style="margin-top: 2rem; border-top: 2px solid var(--gold);">
+                    <h4 style="text-align: center; color: var(--gold); margin-bottom: 1.5rem;">🎯 Trade This Strike</h4>
+                    <div class="strike-trading-options" style="display: grid; grid-template-columns: 1fr 1fr; gap: 2rem; margin-bottom: 1rem;">
+                        
+                        <!-- CALL Option Trading -->
+                        <div class="option-trade-card" style="background: rgba(0, 212, 170, 0.1); border: 2px solid var(--success); border-radius: 12px; padding: 1.5rem; text-align: center;">
+                            <h5 style="color: var(--success); margin-bottom: 1rem;">📈 CALL Option</h5>
+                            <div style="font-size: 1.2rem; font-weight: bold; color: var(--success); margin-bottom: 1rem;">₹${this.formatPrice(callPrice)}</div>
+                            <div style="margin-bottom: 1.5rem; font-size: 0.9rem; color: var(--secondary-text);">
+                                ${isITM_Call ? '✅ In-the-Money' : '🔒 Out-of-the-Money'}<br>
+                                Breakeven: ₹${this.formatPrice(strike + callPrice)}
+                            </div>
+                            <div style="display: flex; gap: 0.5rem; justify-content: center;">
+                                <button class="btn-primary" onclick="window.optionsChain.openTradeModalFromStrike('${symbol}', ${strike}, 'CALL', ${callPrice})" 
+                                        style="background: var(--success); padding: 0.75rem 1rem; border: none; border-radius: 6px; color: white; cursor: pointer; font-weight: bold;">
+                                    🛒 Place Order
+                                </button>
+                                <button class="btn-secondary" onclick="window.optionsChain.addToBasketFromStrike('${symbol}', ${strike}, 'CALL', ${callPrice})"
+                                        style="background: transparent; border: 2px solid var(--success); color: var(--success); padding: 0.75rem 1rem; border-radius: 6px; cursor: pointer; font-weight: bold;">
+                                    🧺 Add to Basket
+                                </button>
+                            </div>
+                        </div>
+                        
+                        <!-- PUT Option Trading -->
+                        <div class="option-trade-card" style="background: rgba(255, 71, 87, 0.1); border: 2px solid var(--danger); border-radius: 12px; padding: 1.5rem; text-align: center;">
+                            <h5 style="color: var(--danger); margin-bottom: 1rem;">📉 PUT Option</h5>
+                            <div style="font-size: 1.2rem; font-weight: bold; color: var(--danger); margin-bottom: 1rem;">₹${this.formatPrice(putPrice)}</div>
+                            <div style="margin-bottom: 1.5rem; font-size: 0.9rem; color: var(--secondary-text);">
+                                ${isITM_Put ? '✅ In-the-Money' : '🔒 Out-of-the-Money'}<br>
+                                Breakeven: ₹${this.formatPrice(strike - putPrice)}
+                            </div>
+                            <div style="display: flex; gap: 0.5rem; justify-content: center;">
+                                <button class="btn-primary" onclick="window.optionsChain.openTradeModalFromStrike('${symbol}', ${strike}, 'PUT', ${putPrice})"
+                                        style="background: var(--danger); padding: 0.75rem 1rem; border: none; border-radius: 6px; color: white; cursor: pointer; font-weight: bold;">
+                                    🛒 Place Order
+                                </button>
+                                <button class="btn-secondary" onclick="window.optionsChain.addToBasketFromStrike('${symbol}', ${strike}, 'PUT', ${putPrice})"
+                                        style="background: transparent; border: 2px solid var(--danger); color: var(--danger); padding: 0.75rem 1rem; border-radius: 6px; cursor: pointer; font-weight: bold;">
+                                    🧺 Add to Basket
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div style="text-align: center; margin-top: 1rem; padding: 1rem; background: rgba(255, 190, 11, 0.1); border-radius: 8px;">
+                        <p style="color: var(--gold); font-weight: bold; margin: 0;">
+                            💡 Choose "Place Order" for immediate execution or "Add to Basket" to combine multiple options
+                        </p>
+                    </div>
+                </div>
             </div>
         `;
         
         modal.classList.add('active');
         this.isStrikeModalOpen = true;
+    }
+
+    // Method to open trade modal from strike modal
+    openTradeModalFromStrike(symbol, strike, optionType, price) {
+        // Close strike modal first
+        this.closeModals();
+        // Open trade modal
+        setTimeout(() => {
+            this.openTradeModal(symbol, strike, optionType, price);
+        }, 300);
+    }
+
+    // Method to add to basket directly from strike modal
+    addToBasketFromStrike(symbol, strike, optionType, price) {
+        const lotSize = this.symbols[symbol].lotSize;
+        
+        // Create basket item with default values
+        const basketItem = {
+            id: Date.now(),
+            symbol: symbol,
+            strike: strike,
+            optionType: optionType,
+            action: 'BUY', // Default to BUY
+            quantity: 1,   // Default quantity
+            price: price,
+            orderType: 'MARKET', // Default order type
+            lotSize: lotSize,
+            timestamp: new Date().toLocaleTimeString()
+        };
+        
+        this.basket.push(basketItem);
+        this.updateBasketDisplay();
+        this.showBasket();
+        
+        this.showToast('success', 'Added to Basket', 
+            `✅ BUY 1 lot of ${symbol} ${this.formatPrice(strike)} ${optionType} added to basket`);
+        
+        this.closeModals();
     }
     
     getLiquidityRating(strike, spotPrice) {
